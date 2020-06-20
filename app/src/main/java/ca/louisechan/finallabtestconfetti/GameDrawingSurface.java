@@ -16,7 +16,7 @@ import java.util.Random;
 
 public class GameDrawingSurface extends SurfaceView implements Runnable {
 
-    private GameDrawingSurfaceCallback gameDrawingSurfaceCallback = null;
+    private GameDrawingSurfaceThreadCallback gameDrawingSurfaceCallback = null;
 
     // -----------------------------------
     // ## ANDROID DEBUG VARIABLES
@@ -63,14 +63,9 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
     // ## GAME STATS - number of lives, score, etc
     // ----------------------------
 
-    public interface GameDrawingSurfaceCallback {
-        void onDone();
-    }
-
     public GameDrawingSurface(Context context, int w, int h, ArrayList<Confetti> confettis) {
         super(context);
-
-
+        
         this.holder = this.getHolder();
         this.paintbrush = new Paint();
         this.paintbrush.setColor(Color.BLUE);
@@ -97,7 +92,7 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
 
     }
 
-    public void setCallback(GameDrawingSurfaceCallback callback) {
+    public void setCallback(GameDrawingSurfaceThreadCallback callback) {
         this.gameDrawingSurfaceCallback = callback;
     }
 
@@ -105,7 +100,7 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
     // HELPER FUNCTIONS
     // ------------------------------
 
-    // This funciton prints the screen height & width to the screen.
+    // This function prints the screen height & width to the screen.
     private void printScreenInfo() {
 
         Log.d(TAG, "Screen (w, h) = " + this.screenWidth + "," + this.screenHeight);

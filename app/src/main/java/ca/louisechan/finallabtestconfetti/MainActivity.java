@@ -3,7 +3,6 @@ package ca.louisechan.finallabtestconfetti;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -15,13 +14,10 @@ import android.view.Display;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 
 import java.util.ArrayList;
-import java.util.Timer;
-import java.util.TimerTask;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements GameDrawingSurfaceThreadCallback{
 
     private static final String TAG = "MainActivity";
     private final int PITCH_BLACK_LUX_VALUE = 5; // mean of pitch-black threshold in lux
@@ -45,15 +41,6 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout llParent;
 
     ArrayList<Confetti> confettis;
-
-
-    private GameDrawingSurface.GameDrawingSurfaceCallback mainActivityCallback = new GameDrawingSurface.GameDrawingSurfaceCallback() {
-        @Override
-        public void onDone() {
-            finish();
-            startActivity(getIntent());
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -233,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
 
         // very simple code to get the current height and width of the activity
         gameView = new GameDrawingSurface(this, width, height, confettis);
-        gameView.setCallback(mainActivityCallback);
+        gameView.setCallback(this);
 
         customView.setEnabled(false);
         llParent.addView(gameView);
@@ -267,7 +254,7 @@ public class MainActivity extends AppCompatActivity {
 
         // very simple code to get the current height and width of the activity
         gameView = new GameDrawingSurface(this, width, height, confettis);
-        gameView.setCallback(mainActivityCallback);
+        gameView.setCallback(this);
 
         customView.setEnabled(false);
         llParent.addView(gameView);
@@ -278,5 +265,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-
+    @Override
+    public void onDone() {
+        finish();
+        startActivity(getIntent());
+    }
 }
