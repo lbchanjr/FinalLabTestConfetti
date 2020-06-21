@@ -39,8 +39,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean screenIsLocked = false;
     LinearLayout llParent;
 
-//    ArrayList<Confetti> confettis;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
