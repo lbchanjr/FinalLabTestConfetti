@@ -14,10 +14,11 @@ import android.view.Display;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements GameDrawingSurfaceThreadCallback{
+public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private final int PITCH_BLACK_LUX_VALUE = 5; // mean of pitch-black threshold in lux
@@ -31,16 +32,14 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
     float[] accelerometerData = new float[3];
     float[] magnetometerData = new float[3];
 
-
     double azimuthDegrees;
 
     // Drawing variables
     GameDrawingSurface gameView;
     private boolean screenIsLocked = false;
-    CustomDrawingSurface customView;
     LinearLayout llParent;
 
-    ArrayList<Confetti> confettis;
+//    ArrayList<Confetti> confettis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,8 +53,11 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
         Point size = new Point();
         display.getSize(size);
 
-        customView = new CustomDrawingSurface(this);
-        llParent.addView(customView);
+        // programmatically showing the GameDrawingSurface
+        // - no need to use an xml file
+        gameView = new GameDrawingSurface(this, size.x, size.y);
+
+        llParent.addView(gameView);
 
         // Configure sensor manager
         this.sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -92,6 +94,25 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
                     SensorManager.SENSOR_DELAY_NORMAL);
         }
 
+        gameView.startGame();
+    }
+
+    // This function gets run when user switches from the game to some other app on the phone
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        // Pause the game
+        gameView.pauseGame();
+    }
+
+    // This function gets run when user comes back to the game
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Start the game
+        gameView.startGame();
     }
 
     private SensorEventListener configureOrientationListener() {
@@ -134,6 +155,7 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
 
                     // Get the heading direction in degrees
                     azimuthDegrees = azimuth*(180/Math.PI);
+                    //Log.d(TAG, "onSensorChanged: Heading: " + azimuthDegrees);
 
                 }
 
@@ -158,21 +180,17 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
                 float lightLevel = event.values[0];
                 //Log.d(TAG, "The light level in lux is: " + lightLevel);
 
-                if (lightLevel <= PITCH_BLACK_LUX_VALUE && customView != null) {
+                if (lightLevel <= PITCH_BLACK_LUX_VALUE /*&& customView != null*/) {
                     // Erase canvas.
-                    customView.erase();
+                    gameView.erase();
                 }
-
-
             }
 
             @Override
             public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
                 // rarely used
                 // often seen with location services
                 // for example, when person switches from wifi to gps
-
             }
         };
 
@@ -189,85 +207,24 @@ public class MainActivity extends AppCompatActivity implements GameDrawingSurfac
         }
 
         // Tell surfaceview about lock status
-        customView.lockScreen(screenIsLocked);
+        //customView.lockScreen(screenIsLocked);
+        gameView.lockScreen(screenIsLocked);
     }
 
     public void throwConfettiPressed(View view) {
 
-        // Get confetti data from canvas
-        confettis = customView.getConfettis();
-
-        if (confettis.size() == 0) {
-            return;
-        }
-
         double heading = azimuthDegrees;
         boolean headNorth = false;
         Log.d(TAG, "throwConfettiPressed: Heading is " + heading + " degrees");
-        if ( (heading >= 270 && heading <= 359) || (heading >= 0 && heading <= 90)) {
+        if ( (heading >= -90 && heading <= 90)) {
             headNorth = true;
         }
 
-        int width = customView.getCanvasWidth();
-        int height = customView.getCanvasHeight();
-
-        // Create surface view and pass confettis
-        // remove customView canvass
-        Log.d(TAG, "throwConfettiPressed: Number of children before gameview: " + llParent.getChildCount());
-        llParent.removeView(customView);
-        Log.d(TAG, "throwConfettiPressed: Number of children before gameview: " + llParent.getChildCount());
-
-
-        // very simple code to get the current height and width of the activity
-        gameView = new GameDrawingSurface(this, width, height, confettis);
-        gameView.setCallback(this);
-
-        customView.setEnabled(false);
-        llParent.addView(gameView);
-        Log.d(TAG, "throwConfettiPressed: Number of children after gameview: " + llParent.getChildCount());
         // set throw direction
-        gameView.setThrowDirectionNorth(headNorth);
-        gameView.setOperationIsSweep(false);
-
-        // start moving the confettis
-        gameView.startGame();
-
+        gameView.throwConfettis(headNorth);
     }
 
     public void sweepIntoPilePressed(View view) {
-        // Get confetti data from canvas
-        confettis = customView.getConfettis();
-
-        if (confettis.size() == 0) {
-            return;
-        }
-
-        int width = customView.getCanvasWidth();
-        int height = customView.getCanvasHeight();
-
-        // Create surface view and pass confettis
-        // remove customView canvass
-        Log.d(TAG, "throwConfettiPressed: Number of children before gameview: " + llParent.getChildCount());
-        llParent.removeView(customView);
-        Log.d(TAG, "throwConfettiPressed: Number of children before gameview: " + llParent.getChildCount());
-
-
-        // very simple code to get the current height and width of the activity
-        gameView = new GameDrawingSurface(this, width, height, confettis);
-        gameView.setCallback(this);
-
-        customView.setEnabled(false);
-        llParent.addView(gameView);
-        Log.d(TAG, "throwConfettiPressed: Number of children after gameview: " + llParent.getChildCount());
-        gameView.setOperationIsSweep(true);
-        // start moving the confettis
-        gameView.startGame();
-
-    }
-
-    @Override
-    public void onDone() {
-        finish();
-        startActivity(getIntent());
+        gameView.sweepConfettis();
     }
 }

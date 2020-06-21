@@ -9,14 +9,13 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Random;
 
 
 public class GameDrawingSurface extends SurfaceView implements Runnable {
-
-    private GameDrawingSurfaceThreadCallback gameDrawingSurfaceCallback = null;
 
     // -----------------------------------
     // ## ANDROID DEBUG VARIABLES
@@ -42,7 +41,6 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
     // drawing variables
     SurfaceHolder holder;
     Canvas canvas;
-    Bitmap bitmap;
     Paint paintbrush;
 
     // -----------------------------------
@@ -55,33 +53,44 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
 
     ArrayList<Confetti> confettis;              // points to the confettis that were created by user
     boolean throwDirectionNorth = false;        // indicates the throw direction of the confettis
-    boolean initialDisplay = true;              // inidicate if display is the first animation frame
+    boolean initialDisplay;                     // inidicates whether display is the first animation frame
 
     boolean operationIsSweep = false;
+    // Helper variables for drawing lines on screen
+    boolean screenLocked = false;
+    boolean startAnimation = false;
+    boolean sweepIsComplete = false;
 
     // ----------------------------
     // ## GAME STATS - number of lives, score, etc
     // ----------------------------
 
-    public GameDrawingSurface(Context context, int w, int h, ArrayList<Confetti> confettis) {
+    public GameDrawingSurface(Context context, int w, int h/*, ArrayList<Confetti> confettis*/) {
         super(context);
-        
+
         this.holder = this.getHolder();
+
         this.paintbrush = new Paint();
         this.paintbrush.setColor(Color.BLUE);
 
         this.screenWidth = w;
         this.screenHeight = h;
-        this.confettis = confettis;
-
+        this.confettis = new ArrayList<>();
 
         this.printScreenInfo();
+    }
 
-        // Add your sprites to this section
-        // This is optional. Use it to:
-        //  - setup or configure your sprites
-        //  - set the initial position of your sprites
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
 
+        this.screenWidth = w;
+        this.screenHeight = h;
+
+        Log.d(TAG, "onSizeChanged: Screen size changed");
+    }
+
+    public void generateRandomSpeeds() {
         Random r = new Random();
 
         // set the movement speed of each confetti using a speed between 15 to 30 pixels
@@ -92,8 +101,20 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
 
     }
 
-    public void setCallback(GameDrawingSurfaceThreadCallback callback) {
-        this.gameDrawingSurfaceCallback = callback;
+    public void lockScreen(boolean lockStatus) {
+        this.screenLocked = lockStatus;
+    }
+
+    public void erase() {
+        pauseGame();
+        confettis.clear();
+        startGame();
+        Log.d(TAG, "erase: Confettis erased");
+    }
+
+    public void changeColor(int color) {
+        Log.d(TAG, "changeColor: Paintbrush color was changed");
+        paintbrush.setColor(color);
     }
 
     // ------------------------------
@@ -106,7 +127,6 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
         Log.d(TAG, "Screen (w, h) = " + this.screenWidth + "," + this.screenHeight);
     }
 
-
     // ------------------------------
     // GAME STATE FUNCTIONS (run, stop, start)
     // ------------------------------
@@ -118,14 +138,10 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
             this.redrawSprites();
             this.setFPS();
 
-            Log.d(TAG, "run: game thread is running!");
+            //Log.d(TAG, "run: game thread is running!");
         }
 
-        if (gameDrawingSurfaceCallback != null) {
-            gameDrawingSurfaceCallback.onDone();
-        }
-
-        Log.d(TAG, "run: game thread is stopped!");
+        //Log.d(TAG, "run: game thread is stopped!");
     }
 
 
@@ -153,6 +169,9 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
     // 1. Tell Android the (x,y) positions of your sprites
     public void updatePositions() {
         // Update the position of the sprites
+        if (startAnimation == false) {
+            return;
+        }
 
         // Initially indicate that no confettis have been thrown offscreen or swept in the center screen.
         int offScreenConfettis = 0;
@@ -203,10 +222,17 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
         }
 
         // Check if all confettis are thrown offscreen or have been swept in the center.
-        Log.d(TAG, "updatePositions: Number of offscreen confetties: " + offScreenConfettis);
+        Log.d(TAG, "updatePositions: Number of offscreen confettis: " + offScreenConfettis);
+        Log.d(TAG, "updatePositions: Number of confettis: " + confettis.size());
         if (offScreenConfettis == confettis.size()) {
-            redrawSprites();
-            gameIsRunning = false;
+            if (operationIsSweep == false) {
+                Log.d(TAG, "updatePositions: Removing confettis from collection. animating = " + startAnimation);
+                startAnimation = false;
+                Log.d(TAG, "updatePositions: animating = " + startAnimation);
+                confettis.clear();
+            } else {
+                sweepIsComplete = true;
+            }
         }
 
         // Indicate that initial display is done
@@ -215,7 +241,7 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
 
     // 2. Tell Android to DRAW the sprites at their positions
     public void redrawSprites() {
-        if (this.holder.getSurface().isValid()) {
+        if (this.holder.getSurface().isValid() /*&& confettis.size() != 0*/) {
             this.canvas = this.holder.lockCanvas();
 
             // Put all your drawing code in this section
@@ -229,6 +255,12 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
                 canvas.drawRect(c.getCenterX() - 25, c.getCenterY() - 25, c.getCenterX() + 25, c.getCenterY() + 25, paintbrush);
             }
 
+            if (sweepIsComplete == true && startAnimation == true && operationIsSweep == true) {
+                paintbrush.setTextSize(40);
+                paintbrush.setTextAlign(Paint.Align.CENTER);
+                paintbrush.setColor(Color.BLACK);
+                this.canvas.drawText("Tap on canvas one more time to clear up the pile.",  screenWidth/2, screenHeight/2 + 100, paintbrush);
+            }
             //----------------
             this.holder.unlockCanvasAndPost(canvas);
         }
@@ -242,6 +274,26 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
         }
         catch (Exception e) {
 
+        }
+    }
+
+    public void throwConfettis(boolean throwDirectionNorth) {
+        if (startAnimation == false && confettis.size() != 0) {
+            generateRandomSpeeds();
+            this.throwDirectionNorth = throwDirectionNorth;
+            setOperationIsSweep(false);
+            startAnimation = true;
+            initialDisplay = true;
+        }
+    }
+
+    public void sweepConfettis() {
+        if (startAnimation == false && confettis.size() != 0) {
+            generateRandomSpeeds();
+            setOperationIsSweep(true);
+            startAnimation = true;
+            initialDisplay = true;
+            sweepIsComplete = false;
         }
     }
 
@@ -275,16 +327,35 @@ public class GameDrawingSurface extends SurfaceView implements Runnable {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // do nothing if screen is locked
+        if (sweepIsComplete == true && startAnimation == true && operationIsSweep == true) {
+            startAnimation = false;
+            pauseGame();
+            confettis.clear();
+            startGame();
+            return true;
+        }
 
-        int userAction = event.getActionMasked();
+        if (screenLocked == false && startAnimation == false) {
+            int userAction = event.getActionMasked();
 
-        Log.d(TAG, "onTouchEvent: touched inside gaming surface");
+            Log.d(TAG, "onTouchEvent: touched inside gaming surface");
 
-        if (userAction == MotionEvent.ACTION_DOWN) {
-            // user pressed the screen
+            if (userAction == MotionEvent.ACTION_DOWN) {
+                // user pressed the screen
+                // - capture the starting position where you line should be
+                pauseGame();
 
-        } else if (userAction == MotionEvent.ACTION_UP) {
-            // user lifted their finger
+                Confetti c = new Confetti(event.getX(), event.getY());
+                confettis.add(c);
+                changeColor(c.getColor());
+                Log.d(TAG, "onTouchEvent: Confetti added to collection");
+
+                startGame();
+
+            } else if (userAction == MotionEvent.ACTION_UP) {
+                // user lifted their finger
+            }
         }
 
         return true;
